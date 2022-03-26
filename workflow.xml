@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" version="4.1" group="task" method="upgrade">
+	<name>PLG_TASK_WORKFLOW</name>
+	<creationDate>26.03.22</creationDate>
+	<author>Magnus Singer</author>
+	<authorEmail>magnus@chestry.com</authorEmail>
+	<authorUrl>https://chestry.com/magnus</authorUrl>
+	<copyright>Copyright 2022 Magnus Singer</copyright>
+	<license>GNU General Public License version 2 or later</license>
+	<version>4.1</version>
+	<description>PLG_TASK_WORKFLOW_XML_DESCRIPTION</description>
+	<files>
+		<filename plugin="workflow">workflow.php</filename>
+		<folder>language</folder>
+		<folder>forms</folder>
+	</files>
+	<languages>
+		<language tag="en-GB">language/plg_task_workflow.ini</language>
+		<language tag="en-GB">language/plg_task_workflow.sys.ini</language>
+	</languages>
+</extension>

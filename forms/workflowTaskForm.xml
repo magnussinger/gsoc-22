@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<form>
+	<fields name="params">
+		<fieldset name="task_params">
+			<field
+					name="targetCat"
+					type="category"
+					extension="com_content"
+					label="PLG_TASK_WORKFLOW_CHOOSE_CATEGORY"
+					description=""
+					multiple="true"
+			/>
+		</fieldset>
+	</fields>
+</form>
