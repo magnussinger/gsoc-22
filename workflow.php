@@ -130,6 +130,9 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 				$workflowId = $this->getParentWorkflowId($categoryId);
 			}
 
+			// Cast to int when we got the final id
+			$workflowId = (int) $workflowId;
+
 			$query = $this->db->getQuery(true);
 			$query->select('id')
 				->from($this->db->quoteName('#__workflow_stages', 'map'))
