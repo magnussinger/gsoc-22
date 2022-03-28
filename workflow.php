@@ -1,11 +1,12 @@
 <?php
 /**
- * @package    Workflow
+ * @package     Joomla.Plugins
+ * @subpackage  Task.Workflow
  *
- * @author     magnus <your@email.com>
+ * @author     magnus <magnus@chestry.com>
  * @copyright  2022 Magnus Singer
- * @license    GNU General Public License version 2 or later; see LICENSE.txt
- * @link       http://your.url.com
+ * @license    GNU General Public License version 2 or later
+ * @link       https://chestry.com/magnus
  */
 
 defined('_JEXEC') or die;
@@ -19,10 +20,8 @@ use Joomla\Event\SubscriberInterface;
 use Joomla\Component\Scheduler\Administrator\Task\Status as TaskStatus;
 
 /**
- * Workflow plugin.
- *
- * @package   Workflow
- * @since     1.0.0
+ * Plugin to manage scheduler tasks for the workflow component
+ * @since     4.X
  */
 class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 {
@@ -42,29 +41,22 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 	];
 
 	/**
-	 * @var boolean
-	 * @since 4.1.0
+	 * @inheritdoc
 	 */
 	protected $autoloadLanguage = true;
 
 	/**
-	 * @var DatabaseDriver;
-	 * @since 4.2
+	 * @inheritdoc
 	 */
 	protected $db;
 
 	/**
-	 * @var JApplicationCms;
-	 * @since 4.2
+	 * @inheritdoc
 	 */
 	protected $app;
 
 	/**
 	 * @inheritDoc
-	 *
-	 * @return string[]
-	 *
-	 * @since 4.1.0
 	 */
 	public static function getSubscribedEvents(): array
 	{
@@ -84,7 +76,7 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 	 * @return   integer  the result code of the execution
 	 * @throws Exception
 	 *
-	 * @since 4.2
+	 * @since 4.X
 	 */
 	protected function setToInitialStage(ExecuteTaskEvent $event): int
 	{
@@ -104,10 +96,11 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 	 * @param   int  $categoryId the ID of the category whose articles should be changed
 	 *
 	 * @throws Exception
-	 * @since 2.1
+	 * @since 4.X
 	 */
 	private function resetToInitialStageForCategory(int $categoryId)
 	{
+        // Get all articles of the category
 		$model = $this->app->bootComponent('com_content')->getMVCFactory()->createModel(
 			'Articles',
 			'Administrator',
@@ -119,8 +112,8 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 
 		foreach ($articles as $article)
 		{
+            // Get the workflow ID of the articles category
 			$workflowId = $this->getWorkflowId($categoryId);
-
 			if ($workflowId == 'use_default')
 			{
 				$workflowId = $this->getDefaultWorkflowId();
@@ -133,6 +126,7 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 			// Cast to int when we got the final id
 			$workflowId = (int) $workflowId;
 
+            // Get the default stage of the workflow
 			$query = $this->db->getQuery(true);
 			$query->select('id')
 				->from($this->db->quoteName('#__workflow_stages', 'map'))
@@ -148,6 +142,7 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 			$result = (array) $this->db->loadObject();
 			$targetStageId = $result['id'];
 
+            // Update the articles stage to the default one
 			$query = $this->db->getQuery(true);
 			$fields = array(
 				$this->db->quoteName('stage_id') . ' = ' . $targetStageId,
@@ -163,11 +158,13 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 	}
 
 	/**
+     * Get the workflow ID of a given category
+     *
 	 * @param int $categoryId the ID of the category
 	 *
 	 * @return   mixed the ID of the workflow or another flag
 	 * @throws Exception
-	 * @since 4.2
+	 * @since 4.X
 	 *
 	 */
 	private function getWorkflowId(int $categoryId)
@@ -187,7 +184,9 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 	}
 
 	/**
-	 * @since 4.2
+     * Get the ID of the default workflow
+     *
+	 * @since 4.X
 	 * @return integer the ID of the default workflow
 	 */
 	private function getDefaultWorkflowId(): int
@@ -204,9 +203,11 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 	}
 
 	/**
+     * Get the workflow ID from the parent of the given category
+     *
 	 * @param   int $categoryId the ID of the category
 	 *
-	 * @since 4.2
+	 * @since 4.X
 	 *
 	 * @throws Exception
 	 *
@@ -227,6 +228,7 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 		$parentId = (string) $result['parent_id'];
 		$workflowId = $this->getWorkflowId($parentId);
 
+        // If the parent also has a flag as workflow ID, we recursively get its parents ID or the default one
 		if ($workflowId == 'use_default')
 		{
 			$workflowId = $this->getDefaultWorkflowId();
