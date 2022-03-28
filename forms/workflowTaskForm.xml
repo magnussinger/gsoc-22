@@ -3,7 +3,7 @@
 	<fields name="params">
 		<fieldset name="task_params">
 			<field
-					name="targetCat"
+					name="targets"
 					type="category"
 					extension="com_content"
 					label="PLG_TASK_WORKFLOW_CHOOSE_CATEGORY"

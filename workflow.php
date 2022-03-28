@@ -17,10 +17,6 @@ use Joomla\Database\DatabaseDriver;
 use Joomla\Database\ParameterType;
 use Joomla\Event\SubscriberInterface;
 use Joomla\Component\Scheduler\Administrator\Task\Status as TaskStatus;
-use Joomla\Registry\Registry;
-
-
-// TODO: multiple categories + fixing
 
 /**
  * Workflow plugin.
@@ -53,11 +49,13 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 
 	/**
 	 * @var DatabaseDriver;
+	 * @since 4.2
 	 */
 	protected $db;
 
 	/**
 	 * @var JApplicationCms;
+	 * @since 4.2
 	 */
 	protected $app;
 
@@ -85,24 +83,42 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 	 *
 	 * @return   integer  the result code of the execution
 	 * @throws Exception
+	 *
+	 * @since 4.2
 	 */
 	protected function setToInitialStage(ExecuteTaskEvent $event): int
 	{
-		$categoryId = $event->getArgument('params')->targetCat;
+		$params = $event->getArgument('params');
+		$categories = $params->targets;
+		foreach ($categories as $categoryId)
+		{
+			$this->resetToInitialStageForCategory((int) $categoryId);
+		}
 
+		return TaskStatus::OK;
+	}
+
+	/**
+	 * Changes the stage of all articles inside the given category to their initial stage
+	 *
+	 * @param   int  $categoryId the ID of the category whose articles should be changed
+	 *
+	 * @throws Exception
+	 * @since 2.1
+	 */
+	private function resetToInitialStageForCategory(int $categoryId)
+	{
 		$model = $this->app->bootComponent('com_content')->getMVCFactory()->createModel(
 			'Articles',
 			'Administrator',
 			['ignore_request' => true]
 		);
-		$model->setState('list.select', 'a.id, a.catid');
+		$model->setState('list.select', 'a.id');
 		$model->setState('filter.category_id', $categoryId);
 		$articles = $model->getItems();
 
 		foreach ($articles as $article)
 		{
-			$this->logTask($article->id);
-
 			$workflowId = $this->getWorkflowId($categoryId);
 
 			if ($workflowId == 'use_default')
@@ -119,56 +135,56 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 				->from($this->db->quoteName('#__workflow_stages', 'map'))
 				->where(
 					[
-					$this->db->quoteName('map.workflow_id') . ' = :workflowID',
-					$this->db->quoteName('map.default') . ' = 1',
+						$this->db->quoteName('map.workflow_id') . ' = :workflowID',
+						$this->db->quoteName('map.default') . ' = 1',
 					]
 				)
 				->bind(':workflowID', $workflowId, ParameterType::INTEGER);
 
-			$initialStageId = (int) $this->db->setQuery($query);
-			$values = [$initialStageId, $article->id];
+			$this->db->setQuery($query);
+			$result = (array) $this->db->loadObject();
+			$targetStageId = $result['id'];
 
-			$this->logTask($initialStageId);
-
-			$updateQuery = $this->db->getQuery(true);
-			$updateQuery->update($this->db->quoteName('#__workflow_associations', 'map'))
-				->set($this->db->quoteName('map.stage_id') . ' = :stageID')
-				->where(
-					[
-						$this->db->quoteName('map.item_id') . ' = :itemID',
-						$this->db->quoteName('map.extension') . " = 'com_content.article'",
-					]
-				)
-				->bind([':workflowID', ':itemID'], $values, ParameterType::LARGE_OBJECT);
-			$this->db->setQuery($updateQuery);
-			$this->db->loadObject();
+			$query = $this->db->getQuery(true);
+			$fields = array(
+				$this->db->quoteName('stage_id') . ' = ' . $targetStageId,
+			);
+			$conditions = array(
+				$this->db->quoteName('item_id') . ' = ' . $article->id,
+				$this->db->quoteName('extension') . ' = ' . $this->db->quote('com_content.article')
+			);
+			$query->update($this->db->quoteName('#__workflow_associations'))->set($fields)->where($conditions);
+			$this->db->setQuery($query);
+			$this->db->execute();
 		}
-
-		return TaskStatus::OK;
 	}
 
 	/**
-	 * @param   int $categoryId the ID of the category
+	 * @param int $categoryId the ID of the category
+	 *
 	 * @return   mixed the ID of the workflow or another flag
+	 * @throws Exception
+	 * @since 4.2
+	 *
 	 */
 	private function getWorkflowId(int $categoryId)
 	{
-		$query = $this->db->getQuery(true);
-		$query->select('params')
+		$query = $this->db->getQuery(true)
+			->select('params')
 			->from($this->db->quoteName('#__categories', 'map'))
 			->where($this->db->quoteName('map.id') . ' = :id')
 			->bind(':id', $categoryId, ParameterType::INTEGER);
-
 		$this->db->setQuery($query);
-		$categoryParams = $this->db->loadObject();
 
-		$categoryParamsRegistry = new Registry;
-		$categoryParamsRegistry->loadObject($categoryParams);
+		$result = (array) $this->db->loadObject();
+		$categoryParams = $result['params'];
+		$paramsJson = json_decode($categoryParams, true);
 
-		return $categoryParamsRegistry->get('workflow_id');
+		return $paramsJson['workflow_id'];
 	}
 
 	/**
+	 * @since 4.2
 	 * @return integer the ID of the default workflow
 	 */
 	private function getDefaultWorkflowId(): int
@@ -179,11 +195,18 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 			->where($this->db->quoteName('map.default') . ' = 1');
 		$this->db->setQuery($query);
 
-		return (int) $this->db->loadObject();
+		$result = (array) $this->db->loadObject();
+
+		return (int) $result['id'];
 	}
 
 	/**
 	 * @param   int $categoryId the ID of the category
+	 *
+	 * @since 4.2
+	 *
+	 * @throws Exception
+	 *
 	 * @return   integer the ID of the parent workflow
 	 */
 	private function getParentWorkflowId(int $categoryId): int
@@ -196,7 +219,9 @@ class PlgTaskWorkflow extends CMSPlugin implements SubscriberInterface
 
 		$this->db->setQuery($query);
 
-		$parentId = (string) $this->db->loadObject();
+		$result = (array) $this->db->loadObject();
+
+		$parentId = (string) $result['parent_id'];
 		$workflowId = $this->getWorkflowId($parentId);
 
 		if ($workflowId == 'use_default')
